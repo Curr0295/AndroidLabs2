@@ -1,124 +1,109 @@
 package com.example.androidlabs2;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
-import android.graphics.Color;
-import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.BaseAdapter;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ListView;
-import android.widget.Switch;
-import android.widget.TextView;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import java.util.List;
 
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.util.Log;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
+
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class MainActivity extends AppCompatActivity {
-    private List<Todo> todoItemList;
-    private MyListAdapter todoAdapter;
-    private Opener dbOpener;
+    private ImageView catImageView;
+    private ProgressBar PBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        dbOpener = new Opener(this);
+        catImageView = findViewById(R.id.catImage);
+        PBar = findViewById(R.id.PBar);
 
-        SQLiteDatabase db = dbOpener.getReadableDatabase();
-        Cursor cursor = db.query(Opener.Table_Name, null, null, null, null, null, null);
-        dbOpener.printCursor(cursor);
-
-        todoItemList = dbOpener.loadData();
-        todoAdapter = new MyListAdapter(todoItemList);
-
-        ListView todoList = findViewById(R.id.list_view);
-        todoList.setAdapter(todoAdapter);
-
-        dbOpener.loadData();
-        todoAdapter.notifyDataSetChanged();
-
-        EditText editText = findViewById(R.id.type_here_edit);
-        Switch urgentSwitch = findViewById(R.id.urgent_switch);
-        Button addButton = findViewById(R.id.add_button);
-
-        addButton.setOnClickListener(v -> {
-            String itemText = editText.getText().toString();
-            boolean isUrgent = urgentSwitch.isChecked();
-
-            Todo todoItem = new Todo(itemText, isUrgent, 0);
-            todoItemList.add(todoItem);
-
-            dbOpener.addToDB(itemText, isUrgent);
-
-            todoAdapter.notifyDataSetChanged();
-            editText.setText("");
-        });
-
-        todoList.setOnItemLongClickListener((parent, view, position, id) -> {
-            AlertDialog.Builder alert = new AlertDialog.Builder(this);
-            alert.setTitle("Do you want to delete this?")
-                    .setMessage("The selected row is:" + (position + 1))
-                    .setPositiveButton("Yes", (click, arg) -> {
-                        int itemId = todoItemList.get(position).getId();
-
-                        dbOpener.deleteFromDB(itemId);
-
-                        todoItemList.remove(position);
-                        todoAdapter.notifyDataSetChanged();
-                    })
-                    .setNegativeButton("No", (click, arg) -> {
-                    })
-                    .create().show();
-            return true;
-        });
+        CatImages catImagesTask = new CatImages();
+        catImagesTask.execute("https://cataas.com/cat?json=true");
     }
 
-    class MyListAdapter extends BaseAdapter {
-        private List<Todo> todoItemList;
+    private class CatImages extends AsyncTask<String, Integer, String> {
+        private Bitmap currentBitmap;
+        private boolean newCatPictureSelected = false;
 
-        public MyListAdapter(List<Todo> todoItemList) {
-            super();
-            this.todoItemList = todoItemList;
-        }
-        public int getCount() {
-            return todoItemList.size();
-        }
+        @Override
+        protected String doInBackground(String... args) {
+            while (true) {
+                try {
+                    URL url = new URL(args[0]);
+                    HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+                    InputStream response = urlConnection.getInputStream();
 
-        public Object getItem(int position) {
-            return todoItemList.get(position);
-        }
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(response, "UTF-8"), 8);
+                    StringBuilder sb = new StringBuilder();
 
-        public long getItemId(int position) {
-            return position;
-        }
+                    String line = null;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line).append("\n");
+                    }
+                    String result = sb.toString();
+                    Log.d("CatImages", "JSON Result: " + result);
 
-        public View getView(int position, View old, ViewGroup parent) {
-            View newView = old;
-            LayoutInflater inflater = getLayoutInflater();
+                    JSONObject catJson = new JSONObject(result);
+                    if (catJson.has("_id")) {
+                        String baseImageUrl = "https://cataas.com/cat/";
+                        String imageURL = baseImageUrl + catJson.getString("_id");
 
-            if (newView == null) {
-                newView = inflater.inflate(R.layout.activity_todo, parent, false);
+                        String fileName = imageURL.replaceAll("[^a-zA-Z0-9]", "_") + ".jpg";
+                        File imageFile = new File(getFilesDir(), fileName);
+
+                        if (imageFile.exists()) {
+                            currentBitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
+                        } else {
+                            InputStream imageInputStream = new URL(imageURL).openStream();
+                            currentBitmap = BitmapFactory.decodeStream(imageInputStream);
+
+                            FileOutputStream fos = new FileOutputStream(imageFile);
+                            currentBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                            fos.close();
+                        }
+                        newCatPictureSelected = true;
+                        publishProgress(0);
+
+                        for (int i = 0; i < 100; i++) {
+                            try {
+                                publishProgress(i);
+                                Thread.sleep(30);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    } else {
+                        Log.w("CatImages", "Warning: 'url' key not found in JSON response");
+                    }
+
+                } catch (Exception e) {
+                    Log.e("CatImages", "Error in doInBackground", e);
+                }
             }
-            TextView tView = newView.findViewById(R.id.list_content);
+        }
 
-            Todo todoItem = (Todo) getItem(position);
-
-            tView.setText(todoItem.getItemText());
-
-            if (todoItem.isUrgent()) {
-                newView.setBackgroundColor(Color.RED);
-                tView.setTextColor(Color.WHITE);
-            } else {
-                newView.setBackgroundColor(Color.TRANSPARENT);
-                tView.setTextColor(Color.BLACK);
+        @Override
+        protected void onProgressUpdate(Integer... values) {
+            PBar.setProgress(values[0]);
+            if (newCatPictureSelected) {
+                catImageView.setImageBitmap(currentBitmap);
+                newCatPictureSelected = false;
             }
-
-            return newView;
         }
     }
 }
