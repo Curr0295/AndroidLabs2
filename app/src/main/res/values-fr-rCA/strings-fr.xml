@@ -2,7 +2,4 @@
 <resources>
     <string name="app_name">APP</string>
     <string name="toolbar">CST2335 Laboratoire 4</string>
-    <string name="type_here">Écrivez ici</string>
-    <string name="urgent">Urgente</string>
-    <string name="add">AJOUTER</string>
 </resources>

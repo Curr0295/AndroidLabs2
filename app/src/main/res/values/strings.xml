@@ -1,8 +1,7 @@
 <resources>
     <string name="app_name">APP</string>
-    <string name="toolbar">CST2335 Lab 4</string>
-    <string name="type_here">Type Here</string>
-    <string name="urgent">Urgent</string>
-    <string name="add">ADD</string>
-
+    <string name="toolbar">CST2335 Lab7</string>
+    <string name="dad_joke" translatable="false">What makes us human? Selecting all images with traffic lights.</string>
+    <string name="open" translatable="false">Open</string>
+    <string name="close" translatable="false">Close</string>
 </resources>

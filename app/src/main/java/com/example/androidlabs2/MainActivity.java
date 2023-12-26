@@ -1,109 +1,91 @@
 package com.example.androidlabs2;
 
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.os.AsyncTask;
+import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
-import android.widget.ImageView;
-import android.widget.ProgressBar;
 
-import org.json.JSONObject;
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.appcompat.widget.Toolbar;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.widget.Toast;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import com.google.android.material.navigation.NavigationView;
 
-public class MainActivity extends AppCompatActivity {
-    private ImageView catImageView;
-    private ProgressBar PBar;
+public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
+
+    private NavigationView navigationView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        catImageView = findViewById(R.id.catImage);
-        PBar = findViewById(R.id.PBar);
+        Toolbar toolbar = findViewById(R.id.my_toolbar);
+        setSupportActionBar(toolbar);
 
-        CatImages catImagesTask = new CatImages();
-        catImagesTask.execute("https://cataas.com/cat?json=true");
+        DrawerLayout drawerLayout = findViewById(R.id.drawer_layout);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this,
+                drawerLayout, toolbar, R.string.open, R.string.close);
+        drawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+
+        navigationView = findViewById(R.id.navigation_view);
+        navigationView.setNavigationItemSelectedListener(this);
     }
 
-    private class CatImages extends AsyncTask<String, Integer, String> {
-        private Bitmap currentBitmap;
-        private boolean newCatPictureSelected = false;
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu, menu);
+        return true;
+    }
 
-        @Override
-        protected String doInBackground(String... args) {
-            while (true) {
-                try {
-                    URL url = new URL(args[0]);
-                    HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-                    InputStream response = urlConnection.getInputStream();
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        String message = null;
 
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(response, "UTF-8"), 8);
-                    StringBuilder sb = new StringBuilder();
-
-                    String line = null;
-                    while ((line = reader.readLine()) != null) {
-                        sb.append(line).append("\n");
-                    }
-                    String result = sb.toString();
-                    Log.d("CatImages", "JSON Result: " + result);
-
-                    JSONObject catJson = new JSONObject(result);
-                    if (catJson.has("_id")) {
-                        String baseImageUrl = "https://cataas.com/cat/";
-                        String imageURL = baseImageUrl + catJson.getString("_id");
-
-                        String fileName = imageURL.replaceAll("[^a-zA-Z0-9]", "_") + ".jpg";
-                        File imageFile = new File(getFilesDir(), fileName);
-
-                        if (imageFile.exists()) {
-                            currentBitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
-                        } else {
-                            InputStream imageInputStream = new URL(imageURL).openStream();
-                            currentBitmap = BitmapFactory.decodeStream(imageInputStream);
-
-                            FileOutputStream fos = new FileOutputStream(imageFile);
-                            currentBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-                            fos.close();
-                        }
-                        newCatPictureSelected = true;
-                        publishProgress(0);
-
-                        for (int i = 0; i < 100; i++) {
-                            try {
-                                publishProgress(i);
-                                Thread.sleep(30);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    } else {
-                        Log.w("CatImages", "Warning: 'url' key not found in JSON response");
-                    }
-
-                } catch (Exception e) {
-                    Log.e("CatImages", "Error in doInBackground", e);
-                }
-            }
+        if (item.getItemId() == R.id.item1) {
+            message = "the raspberry";
+        } else if (item.getItemId() == R.id.item2) {
+            message = "the watermelon!";
         }
 
-        @Override
-        protected void onProgressUpdate(Integer... values) {
-            PBar.setProgress(values[0]);
-            if (newCatPictureSelected) {
-                catImageView.setImageBitmap(currentBitmap);
-                newCatPictureSelected = false;
-            }
+        DrawerLayout drawerLayout = findViewById(R.id.drawer_layout);
+        drawerLayout.closeDrawer(GravityCompat.START);
+
+        if (message != null) {
+            Toast.makeText(this, "You clicked on: " + message, Toast.LENGTH_LONG).show();
         }
+        return false;
+    }
+    @Override
+    public boolean onNavigationItemSelected(MenuItem item) {
+        String message = null;
+
+        if (item.getItemId() == R.id.home_button) {
+            message = "Home";
+            Intent intent = new Intent(this, MainActivity.class);
+            startActivity(intent);
+        } else if (item.getItemId() == R.id.dadjoke_button) {
+            message = "Dad Joke";
+            Intent dadJokeIntent = new Intent(this, dad_joke.class);
+            startActivity(dadJokeIntent);
+        } else if (item.getItemId() == R.id.exit_button) {
+            message = "Exit";
+            finishAffinity();
+        }
+
+        DrawerLayout drawerLayout = findViewById(R.id.drawer_layout);
+        drawerLayout.closeDrawer(GravityCompat.START);
+
+        if (message != null) {
+            Toast.makeText(this, "You have clicked: " + message, Toast.LENGTH_LONG).show();
+        }
+
+        return true;
     }
 }
